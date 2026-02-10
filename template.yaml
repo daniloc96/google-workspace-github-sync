@@ -1,0 +1,154 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Google Workspace to GitHub Organization Sync
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: google-workspace-github-sync
+    Description: Sync Google Workspace groups to GitHub organization members and owners.
+    Author: Danilo Cacace
+    SpdxLicenseId: MIT
+    LicenseUrl: LICENSE
+    ReadmeUrl: README.md
+    SemanticVersion: 0.1.0
+    SourceCodeUrl: https://github.com/daniloc96/google-workspace-github-sync
+
+Parameters:
+  ScheduleExpression:
+    Type: String
+    Default: rate(15 minutes)
+    Description: EventBridge schedule for sync execution
+
+  LogLevel:
+    Type: String
+    Default: info
+    AllowedValues: [debug, info, warn, error]
+
+  LogFormat:
+    Type: String
+    Default: json
+    AllowedValues: [json, text]
+
+  GoogleCredentialsSecretName:
+    Type: String
+    Default: google-workspace-github-sync/google-credentials
+    Description: Secrets Manager name for Google service account credentials JSON
+
+  GitHubTokenSecretName:
+    Type: String
+    Default: google-workspace-github-sync/github-token
+    Description: Secrets Manager name for GitHub token
+
+  DynamoDBEnabled:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+    Description: Enable invitation reconciliation with DynamoDB
+
+  DynamoDBTableName:
+    Type: String
+    Default: invitation-mappings
+    Description: DynamoDB table name for invitation tracking
+
+Resources:
+  GoogleGitHubSyncFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: google-workspace-github-sync
+      Runtime: provided.al2023
+      Handler: bootstrap
+      CodeUri: .
+      Architectures:
+        - arm64
+      MemorySize: 512
+      Timeout: 300
+      ReservedConcurrentExecutions: 1
+      Environment:
+        Variables:
+          LOG_LEVEL: !Ref LogLevel
+          LOG_FORMAT: !Ref LogFormat
+          GOOGLE_CREDENTIALS_SECRET: !Ref GoogleCredentialsSecretName
+          GITHUB_TOKEN_SECRET: !Ref GitHubTokenSecretName
+          DYNAMODB_ENABLED: !Ref DynamoDBEnabled
+          DYNAMODB_TABLE_NAME: !Ref DynamoDBTableName
+          DYNAMODB_REGION: !Ref AWS::Region
+      Policies:
+        - AWSLambdaBasicExecutionRole
+        - Statement:
+            - Effect: Allow
+              Action:
+                - secretsmanager:GetSecretValue
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - cloudwatch:PutMetricData
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:GetItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+              Resource:
+                - !GetAtt InvitationMappingsTable.Arn
+                - !Sub "${InvitationMappingsTable.Arn}/index/*"
+      Events:
+        ScheduledSync:
+          Type: Schedule
+          Properties:
+            Schedule: !Ref ScheduleExpression
+
+  InvitationMappingsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref DynamoDBTableName
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: gsi1pk
+          AttributeType: S
+        - AttributeName: gsi1sk
+          AttributeType: S
+        - AttributeName: gsi2pk
+          AttributeType: S
+        - AttributeName: gsi2sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: gsi1pk
+              KeyType: HASH
+            - AttributeName: gsi1sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+        - IndexName: status-index
+          KeySchema:
+            - AttributeName: gsi2pk
+              KeyType: HASH
+            - AttributeName: gsi2sk
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+      Tags:
+        - Key: Application
+          Value: google-workspace-github-sync
+
+Outputs:
+  FunctionArn:
+    Description: Lambda function ARN
+    Value: !GetAtt GoogleGitHubSyncFunction.Arn
+  InvitationMappingsTableArn:
+    Description: DynamoDB table ARN for invitation mappings
+    Value: !GetAtt InvitationMappingsTable.Arn

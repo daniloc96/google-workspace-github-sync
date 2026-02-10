@@ -1,0 +1,25 @@
+google:
+  admin_email: admin@yourdomain.com
+  credentials_file: ./credentials.json
+  members_group: github-members@yourdomain.com
+  owners_group: github-owners@yourdomain.com
+
+github:
+  organization: your-github-org
+  token: ghp_your_token_here
+
+sync:
+  dry_run: true
+  ignore_suspended: true
+  remove_extra_members: false
+
+log:
+  level: info
+  format: pretty
+
+dynamodb:
+  enabled: true
+  table_name: invitation-mappings
+  region: eu-west-1
+  endpoint: http://localhost:8000
+  ttl_days: 90

@@ -1,0 +1,22 @@
+# Binaries and build artifacts
+bin/
+main
+*.exe
+*.test
+*.out
+
+# Configuration and Credentials
+credentials.json
+config.yaml
+.env
+
+# MacOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+*.swo
