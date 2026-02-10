@@ -145,7 +145,11 @@ This enables **proactive matching** before the diff even runs:
 - Role mismatches are detected and handled via `ActionUpdateRole`
 - A DynamoDB `EXISTING#<username>` record is created automatically (see below)
 
-> **Note**: This mechanism does NOT require SAML SSO. It only requires that the organization has at least one verified domain and that users have added their work email to their GitHub account.
+> **Important Requirement**:
+> 1. The GitHub organization **must** have a verified domain matching the Google Workspace domain.
+> 2. GitHub users **must** have their work email (matching the verified domain) added to their GitHub account (it can be a secondary email).
+>
+> This mechanism does NOT require SAML SSO, but it relies on GitHub's ability to map verified emails to users. If a user has not added their work email, they cannot be reliably matched.
 
 ### DynamoDB records for verified email matches
 

@@ -27,6 +27,10 @@ This tool keeps GitHub organization membership aligned with Google Workspace gro
 - Go 1.25+
 - Google Workspace Admin access
 - GitHub organization admin access
+- **Critical Requirement**:
+  - The company domain (e.g., `yourdomain.com`) **must be verified** in the GitHub organization settings.
+  - Users **must** have their work email (e.g., `user@yourdomain.com`) added to their GitHub account (it can be a secondary email).
+  > **Why?** This allows the tool to reliably map Google Workspace emails to GitHub users without requiring SAML SSO. If a user's work email is not on their GitHub account, they cannot be matched or invited correctly.
 
 ### 2) Create Google credentials
 
